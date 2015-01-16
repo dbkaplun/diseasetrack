@@ -2,7 +2,7 @@
   <ul class="list-unstyled hide" v-class="hide: false">
     <li v-repeat="tweets | filterTweets">
       <blockquote>
-        <p>{{text}}</p>
+        <p>{{{text}}}</p>
         <footer><a href="http://twitter.com/{{user.screen_name}}" target="_blank">@{{user.screen_name}}</a> at <span>{{timestamp_ms | ms}}</span></footer>
       </blockquote>
     </li>
