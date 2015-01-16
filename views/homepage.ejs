@@ -1,52 +1,111 @@
 <div id="homepage">
-  <ul class="list-unstyled hide" v-class="hide: false">
-    <li v-repeat="tweets | filterTweets">
-      <blockquote>
-        <p>{{{text | autoLink}}}</p>
-        <footer>@<a href="http://twitter.com/{{user.screen_name}}" target="_blank">{{user.screen_name}}</a> at <span>{{timestamp_ms | ms}}</span></footer>
-      </blockquote>
-    </li>
-  </ul>
+  <div class="row">
+    <div class="col-sm-6">
+      <ul class="list-unstyled hide" v-class="hide: false">
+        <li v-repeat="tweets | filterTweets">
+          <blockquote>
+            <p>{{{json.text | autoLink}}}</p>
+            <footer>@<a href="http://twitter.com/{{json.user.screen_name}}" target="_blank">{{json.user.screen_name}}</a> at <span>{{timestamp_ms | time}}</span></footer>
+          </blockquote>
+        </li>
+      </ul>
+    </div>
+    <div class="col-sm-6">
+      <div id="map" class="map" style="height: 500px"></div>
+    </div>
+  </div>
 </div>
 
 <script>
 (function (root) {
   document.addEventListener('diseasetrackReady', function () {
-    require(['jquery', 'vue', 'sails.io', 'moment', 'binarysearch', 'twitter-text'], function (jQuery, Vue, io, moment, bs, twitter) {
+    require(['jquery', 'vue', 'sails.io', 'moment', 'leaflet', 'binarysearch', 'twitter-text'], function (jQuery, Vue, io, moment, L, bs, twitter) {
       var $ = jQuery;
-      return new Vue({
+      return root.homepageView = new Vue({
         el: '#homepage',
         data: {
           TWEETS_TO_DISPLAY: 20,
           tweets: [],
         },
         ready: function () {
-          var self = this;
-          io.socket.get('/tweet', {
-            retweeted: false,
-            sort: 'timestamp DESC',
-            limit: self.TWEETS_TO_DISPLAY
-          }, function (tweetInstances) {
-            $.each(tweetInstances, function (_, tweetInstance) {
-              self.addTweet(tweetInstance.json);
-            });
-          });
-          io.socket.on('tweet', function (data) {
-            self.addTweet(data.data.json);
-          });
+          this.initMap();
+          this.subscribeToTweets();
         },
         methods: {
+          initMap: function () {
+            var self = this;
+            var map = L.map('map').setView([0, 0], 0);
+            L.tileLayer('http://{s}.tile.osm.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
+            }).addTo(map);
+
+            var updatingTweets = false;
+            var lastTweets;
+            self.$watch('tweets', function (tweets) {
+              if (updatingTweets) return;
+              if (lastTweets) lastTweets.slice().reverse().some(function (tweet) {
+                if (self.tweetIndex(tweet) >= 0) return true;
+                if (tweet.marker) tweet.marker.removeFrom(map);
+              });
+              updatingTweets = true;
+              tweets.forEach(function (tweet) {
+                if (!tweet.marker) {
+                  var json = tweet.json;
+                  var geo = json.geo || json.coordinates;
+                  if (geo) {
+                    tweet.marker = L.marker(geo.coordinates).addTo(map);
+                    return;
+                  }
+                  if (json.geo || json.coordinates || json.place) console.log('geo!', JSON.stringify(json, null, '  '));
+                  // self.geocode({address: [
+                  //   json.
+                  // ].filter(Boolean).join(' ')}).done(function (data) {
+                  //   var result = data.results[0];
+                  //   if (result) {
+                  //     var location = result.geometry.location;
+                  //     tweet.marker = L.marker([location.lat, location.lng]).addTo(map);
+                  //   }
+                  // });
+                }
+              });
+              updatingTweets = false;
+              lastTweets = tweets;
+            });
+            return map;
+          },
+          subscribeToTweets: function () {
+            var self = this;
+            io.socket.get('/tweet', {
+              retweeted: false,
+              sort: 'timestamp DESC',
+              limit: self.TWEETS_TO_DISPLAY
+            }, function (tweets) {
+              $.each(tweets, function (_, tweet) {
+                self.addTweet(tweet);
+              });
+            });
+            io.socket.on('tweet', function (data) {
+              self.addTweet(data.data);
+            });
+          },
           addTweet: function (tweet) {
             var tweets = this.tweets;
-            var i = tweets.length ? bs(tweets, tweet, function (tweet) {
-              return (tweet || {}).timestamp_ms || null;
-            }) : 0;
+            var i = this.tweetIndex(tweet);
             if (i < 0) i = -i - 1;
             tweets.splice(i, (tweets[i] || {}).id_str === tweet.id_str, tweet);
+          },
+          tweetIndex: function (tweet) {
+            var tweets = this.tweets;
+            return tweets.length ? bs(tweets, tweet, function (tweet) {
+              return (tweet || {}).timestamp_ms || null;
+            }) : 0;
+          },
+          geocode: function (q) {
+            return $.get('https://maps.googleapis.com/maps/api/geocode/json', q);
           }
         },
         filters: {
-          ms: function (ms) { return moment(Number(ms)).format("h:mma"); },
+          time: function (date) { return moment(date).format("h:mma"); },
           filterTweets: function () {
             return this.tweets.slice(-this.TWEETS_TO_DISPLAY).reverse();
           },

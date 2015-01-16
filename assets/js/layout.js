@@ -8,6 +8,7 @@
       'sails.io': '/js/dependencies/sails.io',
       vue: 'https://cdnjs.cloudflare.com/ajax/libs/vue/0.11.4/vue.min',
       moment: 'https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.9.0/moment.min',
+      leaflet: 'http://cdn.leafletjs.com/leaflet-0.7.3/leaflet',
       binarysearch: 'https://rawgit.com/secrettriangle/javascript-algorithms/240b393f7681b096a81a7680e9e27a7f621d9329/src/searching/binarysearch',
       'twitter-text': 'https://rawgit.com/twitter/twitter-text/master/js/twitter-text',
     },
