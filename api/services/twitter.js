@@ -77,6 +77,8 @@ module.exports.handleTweet = function (tweet) {
   //   filter_level: 'low',
   //   lang: 'en',
   //   timestamp_ms: '1421300910212' }
-  sails.log.debug("received tweet", tweet);
-  Tweet.findOrCreate({id_str: tweet.id_str}, {json: tweet}).fail(sails.log.error);
+  sails.log.verbose("received tweet", tweet);
+  Tweet.findOrCreate({id_str: tweet.id_str}, {json: tweet})
+    .then(Tweet.publishCreate)
+    .catch(sails.log.error);
 };
