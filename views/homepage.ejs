@@ -2,8 +2,8 @@
   <ul class="list-unstyled hide" v-class="hide: false">
     <li v-repeat="tweets | filterTweets">
       <blockquote>
-        <p>{{{text}}}</p>
-        <footer><a href="http://twitter.com/{{user.screen_name}}" target="_blank">@{{user.screen_name}}</a> at <span>{{timestamp_ms | ms}}</span></footer>
+        <p>{{{text | autoLink}}}</p>
+        <footer>@<a href="http://twitter.com/{{user.screen_name}}" target="_blank">{{user.screen_name}}</a> at <span>{{timestamp_ms | ms}}</span></footer>
       </blockquote>
     </li>
   </ul>
@@ -12,7 +12,7 @@
 <script>
 (function (root) {
   document.addEventListener('diseasetrackReady', function () {
-    require(['jquery', 'vue', 'sails.io', 'moment', 'binarysearch'], function (jQuery, Vue, io, moment, bs) {
+    require(['jquery', 'vue', 'sails.io', 'moment', 'binarysearch', 'twitter-text'], function (jQuery, Vue, io, moment, bs, twitter) {
       var $ = jQuery;
       return new Vue({
         el: '#homepage',
@@ -49,6 +49,9 @@
           ms: function (ms) { return moment(Number(ms)).format("h:mma"); },
           filterTweets: function () {
             return this.tweets.slice(-this.TWEETS_TO_DISPLAY).reverse();
+          },
+          autoLink: function (text) {
+            return twitter.autoLink(text, {target: '_blank'});
           }
         }
       });
