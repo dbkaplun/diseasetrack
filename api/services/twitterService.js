@@ -20,7 +20,7 @@ module.exports.handleTweet = function (tweet) {
   //   in_reply_to_user_id: null,
   //   in_reply_to_user_id_str: null,
   //   in_reply_to_screen_name: null,
-  //   user: 
+  //   user:
   //    { id: 1597343893,
   //      id_str: '1597343893',
   //      name: '☆Emma Wallis☆',
@@ -65,7 +65,7 @@ module.exports.handleTweet = function (tweet) {
   //   contributors: null,
   //   retweet_count: 0,
   //   favorite_count: 0,
-  //   entities: 
+  //   entities:
   //    { hashtags: [],
   //      trends: [],
   //      urls: [],

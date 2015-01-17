@@ -11,39 +11,46 @@ module.exports = function (period) {
   }, period);
 };
 module.exports.geocode = function () {
-  console.log('geocode');
-  return Promise.resolve(Tweet.find({geo_status: 'pending'}))
-    .map(function (tweet) {
+  return Tweet.find({geo_status: 'pending'}).then(function (tweets) {
+    sails.log.info("geocoding " + tweets.length + " tweets");
+    var toGeocode = tweets.filter(function (tweet) {
       var json = tweet.json;
-      var geo = json.geo || json.coordinates;
+      var placeCoordinates = (((json.place || {}).bounding_box || {}).coordinates || [])[0] || [];
+      var geo = json.geo || json.coordinates || placeCoordinates[0];
       if (geo) {
         tweet.geo_status = 'resolved';
         tweet.geojson = {type: 'Point', coordinates: geo.coordinates};
-        return tweet;
+      } else {
+        tweet.geo_req = [
+          json.user.location,
+          json.user.time_zone,
+        ].filter(Boolean).join(' ');
+        return true;
       }
-      if (json.place) console.log('place', json.place);
-      tweet.geo_req = [
-        json.user.location,
-        json.user.time_zone,
-      ].filter(Boolean).join(' ');
-      return Promise.resolve(geocoder.geocode(tweet.geo_req))
-        .then(function (res) {
-          tweet.geo_status = res.length ? 'resolved' : 'rejected';
-          tweet.geo_res = res;
-          if (res.length) {
-            var first = res[0];
-            tweet.geojson = {type: 'Point', coordinates: [first.latitude, first.longitude]};
-          }
-        })
-        .catch(function (err) {
+    });
+    return Promise.resolve(geocoder.batchGeocode(_.pluck(toGeocode, 'geo_req')))
+      .each(function (res, i) {
+        var tweet = toGeocode[i];
+        tweet.geo_status = res.length ? 'resolved' : 'rejected';
+        tweet.geo_res = res;
+        if (res.length) {
+          var first = res[0];
+          tweet.geojson = {type: 'Point', coordinates: [first.latitude, first.longitude]};
+        }
+      })
+      .catch(function (err) {
+        toGeocode.forEach(function (tweet) {
           tweet.geo_status = 'rejected';
           tweet.geo_res = err;
-          sails.log.error("geocode error", err);
-        })
-        .return(tweet);
-    })
-    .each(function (tweet) {
-      tweet.save();
-      Tweet.publishUpdate(tweet.id, tweet);
-    });
+        });
+        throw err;
+      })
+      .finally(function () {
+        return Promise.map(tweets, function (tweet) {
+          Tweet.publishUpdate(tweet.id, tweet);
+          return tweet.save();
+        });
+      })
+      .return(tweets);
+  });
 };
