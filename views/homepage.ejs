@@ -1,70 +1,58 @@
 <div id="homepage">
-  <div class="row">
-    <div class="col-sm-6">
-      <ul class="list-group hide" v-class="hide: false">
-        <li v-repeat="tweets | filterTweets" data-twitter-id-str="{{id_str}}" v-on="click: onTweetClicked" v-class="list-group-item-danger: active" class="list-group-item">
-          <blockquote>
-            <p>{{{json.text | autoLink}}}</p>
-            <footer>@<a href="http://twitter.com/{{json.user.screen_name}}" target="_blank">{{json.user.screen_name}}</a> at <span>{{timestamp_ms | time}}</span></footer>
-          </blockquote>
-        </li>
-      </ul>
-    </div>
-    <div class="col-sm-6">
-      <div id="map" class="map" style="height: 500px"></div>
-    </div>
-  </div>
+  <div id="map" class="map"></div>
 </div>
+
+<div id="marker-popup-template" class="hide" v-class="hide: !marker">
+  <blockquote>
+    <p>{{{json.text | autoLink}}}</p>
+    <footer>@<a href="http://twitter.com/{{json.user.screen_name}}" target="_blank">{{json.user.screen_name}}</a> at <span>{{timestamp | time}}</span></footer>
+  </blockquote>
+</div>
+
+<style>
+#homepage, #map { height: 100%; }
+#map { min-height: 500px; }
+</style>
 
 <script>
 (function (root) {
   document.addEventListener('diseasetrackReady', function () {
-    require(['jquery', 'vue', 'sails.io', 'moment', 'leaflet', 'binarysearch', 'twitter-text'], function (jQuery, Vue, io, moment, L, bs, twitter) {
+    require(['jquery', 'vue', 'sails.io', 'leaflet', 'moment', 'twitter-text', 'leaflet.markercluster', 'leaflet.geosearch.provider.openstreetmap'], function (jQuery, Vue, io, L, moment, twitter) {
       var $ = jQuery;
-      var RedIcon = L.Icon.Default.extend({options: {iconUrl: 'images/marker-icon-red.png'}});
-      var redIcon = new RedIcon();
-      var defaultIcon = new L.Icon.Default();
+      Vue.config.async = false;
+      Vue.filter('time', function (date) { return moment(date).format("h:mma"); })
+      Vue.filter('autoLink', function (text) { return twitter.autoLink(text || '', {target: '_blank'}); });
+      // Vue.component('marker-popup', {template: '#marker-popup-template'});
+      var popupView = new Vue({el: '#marker-popup-template'});
       return root.homepageView = new Vue({
         el: '#homepage',
         data: {
-          TWEETS_TO_DISPLAY: 5,
+          TWEET_DISPLAY_COUNT: 1000,
           tweets: [],
+          markerCluster: L.markerClusterGroup(),
         },
         ready: function () {
-          this.initMap();
-          this.subscribeToTweets();
+          var self = this;
+          self.initMap();
+          self.subscribeToTweets();
         },
         methods: {
           initMap: function () {
             var self = this;
-            var map = L.map('map').setView([0, 0], 0);
-            L.tileLayer('http://{s}.tile.osm.org/{z}/{x}/{y}.png', {
-                attribution: '&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
-            }).addTo(map);
-
-            var updatingTweets = false;
-            var lastTweets;
-            self.$watch('tweets', function (tweets) {
-              if (updatingTweets) return;
-              if (lastTweets) lastTweets.slice().reverse().some(function (tweet) {
-                if (self.tweetIndex(tweet) >= 0) return true;
-                if (tweet.marker) tweet.marker.removeFrom(map);
-              });
-              updatingTweets = true;
-              tweets.forEach(function (tweet) {
-                if (tweet.geojson) {
-                  if (!tweet.marker) {
-                    tweet.marker = L.marker(tweet.geojson.coordinates)
-                      .on('click', function () { self.onTweetClicked({tweet: tweet}); })
-                      .addTo(map);
-                  } else {
-                    tweet.marker.setLatLng(tweet.geojson.coordinates);
-                  }
-                }
-              });
-              updatingTweets = false;
-              lastTweets = tweets;
+            var map = L.map('map', {
+              center: [0, 0],
+              zoom: 1,
+              layers: [L.tileLayer('http://{s}.tile.osm.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="http://osm.org/copyright" target="_blank">OpenStreetMap</a>'
+              })]
             });
+            new L.Control.GeoSearch({
+              provider: new L.GeoSearch.Provider.OpenStreetMap(),
+              showMarker: false,
+              zoomLevel: 5
+            })
+              .addTo(map);
+            map.addLayer(self.markerCluster);
             return map;
           },
           subscribeToTweets: function () {
@@ -73,49 +61,28 @@
               retweeted: false,
               geo_status: 'resolved',
               sort: 'timestamp DESC',
-              limit: self.TWEETS_TO_DISPLAY
-            }, function (tweets) {
-              $.each(tweets, function (_, tweet) {
-                self.addTweet(tweet);
-              });
-            });
-            io.socket.on('tweet', function (data) {
-              self.addTweet(data.data);
-            });
+              limit: self.TWEET_DISPLAY_COUNT
+            }, function (tweets) { self.addTweets(tweets); });
+            io.socket.on('tweet', function (data) { self.addTweets([data.data]); });
           },
-          addTweet: function (tweet) {
-            tweet.active = false; // FIXME: hack to get tweet.active to render
-            var tweets = this.tweets;
-            var i = this.tweetIndex(tweet);
-            if (i < 0) i = -i - 1;
-            tweets.splice(i, (tweets[i] || {}).id_str === tweet.id_str, tweet);
-          },
-          tweetIndex: function (tweet) {
-            var tweets = this.tweets;
-            return tweets.length ? bs(tweets, tweet, function (tweet) {
-              return (tweet || {}).timestamp || null;
-            }) : 0;
-          },
-          onTweetClicked: function (evt) {
+          addTweets: function (tweets) {
+            console.log('addTweets', tweets.length);
             var self = this;
-            var id_str = evt.tweet
-              ? evt.tweet.id_str
-              : $(evt.target).closest('[data-twitter-id-str]').attr('data-twitter-id-str');
-            self.tweets = self.tweets.map(function (tweet) {
-              var tweetClicked = id_str === tweet.id_str;
-              if (tweet.marker) tweet.marker.setIcon(tweetClicked ? redIcon : defaultIcon);
-              tweet.active = tweetClicked;
-              return tweet;
+            var markers = $.map(tweets, function (tweet) {
+              if (!tweet.geojson) return;
+              popupView.$data = tweet;
+              var popupHTML = popupView.$el.innerHTML;
+              tweet.marker = L.marker(tweet.geojson.coordinates, {title: $('<div>').html(popupHTML).text()})
+                .bindPopup(popupHTML);
+              tweet.marker.tweet = tweet;
+              return tweet.marker;
             });
-          }
-        },
-        filters: {
-          time: function (date) { return moment(date).format("h:mma"); },
-          filterTweets: function () {
-            return this.tweets.slice(-this.TWEETS_TO_DISPLAY).reverse();
-          },
-          autoLink: function (text) {
-            return twitter.autoLink(text, {target: '_blank'});
+            self.markerCluster.addLayers(markers);
+            tweets = tweets.concat(self.tweets);
+            var removedTweets = tweets.splice(self.TWEET_DISPLAY_COUNT, Infinity);
+            self.markerCluster.removeLayers($.map(removedTweets, function (tweet) {
+              return tweet.marker;
+            }));
           }
         }
       });
