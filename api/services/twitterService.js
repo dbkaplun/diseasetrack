@@ -80,5 +80,6 @@ module.exports.handleTweet = function (tweet) {
   sails.log.verbose("received tweet", tweet);
   Tweet.findOrCreate({id_str: tweet.id_str}, {json: tweet})
     .then(Tweet.publishCreate)
-    .catch(sails.log.error);
+    .catch(sails.log.error)
+    .done();
 };

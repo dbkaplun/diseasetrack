@@ -1,8 +1,8 @@
 <div id="homepage">
   <div class="row">
     <div class="col-sm-6">
-      <ul class="list-unstyled hide" v-class="hide: false">
-        <li v-repeat="tweets | filterTweets">
+      <ul class="list-group hide" v-class="hide: false">
+        <li v-repeat="tweets | filterTweets" data-twitter-id-str="{{id_str}}" v-on="click: onTweetClicked" v-class="list-group-item-danger: active" class="list-group-item">
           <blockquote>
             <p>{{{json.text | autoLink}}}</p>
             <footer>@<a href="http://twitter.com/{{json.user.screen_name}}" target="_blank">{{json.user.screen_name}}</a> at <span>{{timestamp_ms | time}}</span></footer>
@@ -21,10 +21,13 @@
   document.addEventListener('diseasetrackReady', function () {
     require(['jquery', 'vue', 'sails.io', 'moment', 'leaflet', 'binarysearch', 'twitter-text'], function (jQuery, Vue, io, moment, L, bs, twitter) {
       var $ = jQuery;
+      var RedIcon = L.Icon.Default.extend({options: {iconUrl: 'images/marker-icon-red.png'}});
+      var redIcon = new RedIcon();
+      var defaultIcon = new L.Icon.Default();
       return root.homepageView = new Vue({
         el: '#homepage',
         data: {
-          TWEETS_TO_DISPLAY: 20,
+          TWEETS_TO_DISPLAY: 5,
           tweets: [],
         },
         ready: function () {
@@ -49,23 +52,14 @@
               });
               updatingTweets = true;
               tweets.forEach(function (tweet) {
-                if (!tweet.marker) {
-                  var json = tweet.json;
-                  var geo = json.geo || json.coordinates;
-                  if (geo) {
-                    tweet.marker = L.marker(geo.coordinates).addTo(map);
-                    return;
+                if (tweet.geojson) {
+                  if (!tweet.marker) {
+                    tweet.marker = L.marker(tweet.geojson.coordinates)
+                      .on('click', function () { self.onTweetClicked({tweet: tweet}); })
+                      .addTo(map);
+                  } else {
+                    tweet.marker.setLatLng(tweet.geojson.coordinates);
                   }
-                  if (json.geo || json.coordinates || json.place) console.log('geo!', JSON.stringify(json, null, '  '));
-                  // self.geocode({address: [
-                  //   json.
-                  // ].filter(Boolean).join(' ')}).done(function (data) {
-                  //   var result = data.results[0];
-                  //   if (result) {
-                  //     var location = result.geometry.location;
-                  //     tweet.marker = L.marker([location.lat, location.lng]).addTo(map);
-                  //   }
-                  // });
                 }
               });
               updatingTweets = false;
@@ -77,6 +71,7 @@
             var self = this;
             io.socket.get('/tweet', {
               retweeted: false,
+              geo_status: 'resolved',
               sort: 'timestamp DESC',
               limit: self.TWEETS_TO_DISPLAY
             }, function (tweets) {
@@ -89,6 +84,7 @@
             });
           },
           addTweet: function (tweet) {
+            tweet.active = false; // FIXME: hack to get tweet.active to render
             var tweets = this.tweets;
             var i = this.tweetIndex(tweet);
             if (i < 0) i = -i - 1;
@@ -97,11 +93,20 @@
           tweetIndex: function (tweet) {
             var tweets = this.tweets;
             return tweets.length ? bs(tweets, tweet, function (tweet) {
-              return (tweet || {}).timestamp_ms || null;
+              return (tweet || {}).timestamp || null;
             }) : 0;
           },
-          geocode: function (q) {
-            return $.get('https://maps.googleapis.com/maps/api/geocode/json', q);
+          onTweetClicked: function (evt) {
+            var self = this;
+            var id_str = evt.tweet
+              ? evt.tweet.id_str
+              : $(evt.target).closest('[data-twitter-id-str]').attr('data-twitter-id-str');
+            self.tweets = self.tweets.map(function (tweet) {
+              var tweetClicked = id_str === tweet.id_str;
+              if (tweet.marker) tweet.marker.setIcon(tweetClicked ? redIcon : defaultIcon);
+              tweet.active = tweetClicked;
+              return tweet;
+            });
           }
         },
         filters: {

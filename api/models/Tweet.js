@@ -11,6 +11,10 @@ module.exports = {
     id_str: {type: 'string', required: true, unique: true},
     timestamp: {type: 'datetime', required: true},
     retweeted: {type: 'boolean', required: true},
+
+    geo_status: {type: 'string', required: true, defaultsTo: 'pending', enum: ['pending', 'resolved', 'rejected']},
+    geo_res: 'json',
+    geojson: 'json',
   },
   beforeValidate: function (values, done) {
     values.id_str = values.json.id_str;
