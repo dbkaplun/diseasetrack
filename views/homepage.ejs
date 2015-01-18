@@ -1,7 +1,4 @@
 <div id="homepage">
-  <div id="spinner" class="text-center hide" v-class="hide: map">
-    <i class="fa fa-spinner fa-spin fa-4x"></i>
-  </div>
   <div id="map" class="map"></div>
 </div>
 
@@ -22,13 +19,12 @@
 <style>
 #homepage, #map { height: 100%; }
 #map { min-height: 500px; }
-#spinner { padding: 100px; }
 </style>
 
 <script>
 (function (root) {
   document.addEventListener('diseasetrackReady', function () {
-    require(['jquery', 'vue', 'sails.io', 'leaflet', 'moment', 'twitter-text', 'binarysearch', 'mergesort', 'leaflet.markercluster', 'leaflet.heat', 'leaflet.geosearch.provider.openstreetmap'], function (jQuery, Vue, io, L, moment, twitter, bs, ms) {
+    require(['jquery', 'vue', 'nprogress', 'leaflet', 'sails.io', 'moment', 'twitter-text', 'binarysearch', 'mergesort', 'leaflet.markercluster', 'leaflet.heat', 'leaflet.geosearch.provider.openstreetmap'], function (jQuery, Vue, NProgress, L, io, moment, twitter, bs, ms) {
       var keyCmp = function (key) { return function (a, b) { return key(a) - key(b); }; };
       var tweetKey = function (tweet) { return (tweet || {}).timestamp; };
       var tweetCmp = keyCmp(function (tweet) { return -tweetKey(tweet); });
@@ -79,14 +75,16 @@
           },
           subscribeToTweets: function () {
             var self = this;
-            self.fetchTweets();
+            NProgress.start();
+            self.fetchTweets(function () { NProgress.done(); });
             io.socket.on('tweet', function (data) { self.addTweets([data.data]); });
             // self.fetchTweetsInterval = setInterval(function () {
             //   self.fetchTweets();
             // }, self.FETCH_TWEETS_INTERVAL);
           },
-          fetchTweets: function () {
+          fetchTweets: function (done) {
             var self = this;
+            done = done || function () {};
             var recentTweet = self.tweets[0];
             self.getTweetsChunked(function (tweets) {
               if (!self.map) self.initMap();
@@ -94,10 +92,12 @@
                 var i = insertionIndex(bs(tweets, recentTweet, tweetKey));
                 if (i < tweets.length) {
                   self.addTweets(tweets.slice(0, i));
+                  done();
                   return false;
                 }
               }
               self.addTweets(tweets);
+              if (!tweets.length) done();
               return tweets.length;
             });
           },

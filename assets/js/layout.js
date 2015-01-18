@@ -16,6 +16,7 @@
       'twitter-text': 'https://rawgit.com/twitter/twitter-text/master/js/twitter-text',
       'binarysearch': 'https://rawgit.com/mgechev/javascript-algorithms/master/src/searching/binarysearch',
       'mergesort': 'https://rawgit.com/secrettriangle/javascript-algorithms/779c7ec1525e750e50883bd3e1253df983067b20/src/sorting/mergesort',
+      'nprogress': 'https://rawgit.com/rstacruz/nprogress/master/nprogress',
     },
     shim: {
       bootstrap: {deps: ['jquery']},
