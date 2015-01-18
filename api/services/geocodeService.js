@@ -15,11 +15,15 @@ module.exports.geocode = function () {
     sails.log.info("geocoding " + tweets.length + " tweets");
     var toGeocode = tweets.filter(function (tweet) {
       var json = tweet.json;
-      var placeCoordinates = (((json.place || {}).bounding_box || {}).coordinates || [])[0] || [];
-      var geo = json.geo || json.coordinates || placeCoordinates[0];
-      if (geo) {
+      var coordinates =
+        (json.geo || json.coordinates || {}).coordinates ||
+        ((((json.place || {}).bounding_box || {}).coordinates || [])[0] || [])[0];
+      ['geo', 'coordinates', 'place'].some(function (path) {
+        if (json[path]) { console.log(path, coordinates); return true; }
+      });
+      if (coordinates) {
         tweet.geo_status = 'resolved';
-        tweet.geojson = {type: 'Point', coordinates: geo.coordinates};
+        tweet.geojson = {type: 'Point', coordinates: coordinates};
       } else {
         tweet.geo_req = [
           json.user.location,
