@@ -48,10 +48,17 @@
 
           TWEET_PRUNE_AGE: moment.duration(1, 'day'),
           TWEET_CHUNK_SIZE: 50,
-          FETCH_TWEETS_INTERVAL: moment.duration(15, 'seconds')
+          UPDATE_TWEETS_INTERVAL: moment.duration(15, 'seconds')
         },
-        ready: function () { this.subscribeToTweets(); },
+        ready: function () {
+          this.initMap();
+          this.initChart();
+          this.initUpdateTweets();
+        },
         methods: {
+          initChart: function () {
+
+          },
           initMap: function () {
             var self = this;
             self.map = L.map('map', {
@@ -73,21 +80,21 @@
             self.map.addLayer(self.markerCluster);
             return self.map;
           },
-          subscribeToTweets: function () {
+          initUpdateTweets: function () {
             var self = this;
             NProgress.start();
-            self.fetchTweets(function () { NProgress.done(); });
+            self.updateTweets(function () { NProgress.done(); });
             io.socket.on('tweet', function (data) { self.addTweets([data.data]); });
-            // self.fetchTweetsInterval = setInterval(function () {
-            //   self.fetchTweets();
-            // }, self.FETCH_TWEETS_INTERVAL);
+            // self.updateTweetsInterval = setInterval(function () {
+            //   self.updateTweets();
+            // }, self.UPDATE_TWEETS_INTERVAL);
           },
-          fetchTweets: function (done) {
+
+          updateTweets: function (done) {
             var self = this;
             done = done || function () {};
             var recentTweet = self.tweets[0];
             self.getTweetsChunked(function (tweets) {
-              if (!self.map) self.initMap();
               if (recentTweet) {
                 var i = insertionIndex(bs(tweets, recentTweet, tweetKey));
                 if (i < tweets.length) {
