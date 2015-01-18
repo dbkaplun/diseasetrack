@@ -28,13 +28,16 @@
 <script>
 (function (root) {
   document.addEventListener('diseasetrackReady', function () {
-    require(['jquery', 'vue', 'sails.io', 'leaflet', 'moment', 'twitter-text', 'binarysearch', 'leaflet.markercluster', 'leaflet.heat', 'leaflet.geosearch.provider.openstreetmap'], function (jQuery, Vue, io, L, moment, twitter, bs) {
+    require(['jquery', 'vue', 'sails.io', 'leaflet', 'moment', 'twitter-text', 'binarysearch', 'mergesort', 'leaflet.markercluster', 'leaflet.heat', 'leaflet.geosearch.provider.openstreetmap'], function (jQuery, Vue, io, L, moment, twitter, bs, ms) {
+      var tweetKey = function (tweet) { return (tweet || {}).timestamp; };
+      var tweetCmp = function (a, b) { return tweetKey(b) - tweetKey(a); };
+
       var $ = jQuery;
+
       Vue.config.async = false;
       Vue.filter('time', function (date) { return moment(date).format("h:mma"); })
       Vue.filter('autoLink', function (text) { return twitter.autoLink(text || '', {target: '_blank'}); });
       // Vue.component('marker-popup', {template: '#marker-popup-template'});
-      var oneDay = moment.duration(1, 'day');
       var popupView = new Vue({el: '#marker-popup-template'});
       return root.homepageView = new Vue({
         el: '#homepage',
@@ -44,6 +47,9 @@
           map: null,
           markerCluster: L.markerClusterGroup(),
           heatLayer: L.heatLayer([]),
+
+          TWEET_PRUNE_AGE: moment.duration(1, 'day'),
+          TWEET_CHUNK_SIZE: 500
         },
         ready: function () { this.subscribeToTweets(); },
         methods: {
@@ -70,47 +76,72 @@
           },
           subscribeToTweets: function () {
             var self = this;
-            io.socket.get('/tweet', {
-              retweeted: false,
-              geo_status: 'resolved',
-              timestamp: {'>': moment().subtract(oneDay).toDate()},
-              sort: 'timestamp DESC'
-            }, function (tweets) {
-              self.initMap();
+            self.getTweetsChunked(function (tweets) {
+              if (!self.map) self.initMap();
               self.addTweets(tweets);
+              return tweets.length;
             });
             io.socket.on('tweet', function (data) { self.addTweets([data.data]); });
           },
-          addTweets: function (tweets) {
-            console.log('addTweets', tweets.length);
+          getTweetsChunked: function (chunkFn, skip) {
             var self = this;
+            chunkFn = chunkFn || function (tweets) { return tweets.length; };
+            skip = skip || 0;
+            self.getTweets({skip: skip}, function () {
+              if (!chunkFn.apply(self, arguments)) return;
+              self.getTweetsChunked(chunkFn, skip + self.TWEET_CHUNK_SIZE);
+            });
+          },
+          getTweets: function (q, fn) {
+            var self = this;
+            return io.socket.get('/tweet', $.extend({
+              retweeted: false,
+              geo_status: 'resolved',
+              timestamp: {'>': self.getPruneAgeAgo()},
+              sort: 'timestamp DESC',
+              limit: self.TWEET_CHUNK_SIZE
+            }, q), fn);
+          },
+          addTweets: function (tweets) {
+            var tweetsAdded = tweets.length;
+            console.log('addTweets', tweetsAdded);
+            var self = this;
+            var now = moment();
+            var markers = [];
             var heatMarkers = [];
-            var dayAgo = +moment() - oneDay;
-            var markers = $.map(tweets, function (tweet) {
+            $.each(tweets, function (_, tweet) {
               if (!tweet.geojson) return;
+              var timeAgo = now.diff(tweet.timestamp);
+              if (timeAgo > self.TWEET_PRUNE_AGE) return;
+
               popupView.$data = tweet;
               var popupHTML = popupView.$el.innerHTML;
               tweet.marker = L.marker(tweet.geojson.coordinates, {title: $('<div>').html(popupHTML).text()})
                 .bindPopup(popupHTML);
+              markers.push(tweet.marker);
+
               tweet.heatMarker = $.map(tweet.geojson.coordinates, Number)
-                .concat([1000 * (+moment(tweet.timestamp) - dayAgo) / +oneDay]);
+                .concat([10 * (self.TWEET_PRUNE_AGE - timeAgo) / self.TWEET_PRUNE_AGE]);
               heatMarkers.push(tweet.heatMarker);
-              return tweet.marker;
             });
             self.markerCluster.addLayers(markers);
-            self.tweets = tweets.concat(self.tweets);
-            var i = bs(self.tweets, {timestamp: moment().subtract(oneDay).toDate()}, function (tweet) {
-              return (tweet || {}).timestamp;
-            });
-            if (i < 0) i = -i - 1;
-            var removedTweets = self.tweets.splice(i, Infinity);
-            self.markerCluster.removeLayers($.map(removedTweets, function (tweet) {
+            tweets = tweets.concat(self.tweets);
+            self.tweets = ms.merge(tweets, tweetCmp, 0, tweetsAdded, tweets.length);
+            self.markerCluster.removeLayers($.map(self.pruneTweets(), function (tweet) {
               return tweet.marker;
             }));
             self.heatLayer.setLatLngs(heatMarkers
               .concat(self.heatLayer._latlngs)
               .slice(0, self.tweets.length));
-          }
+          },
+          pruneTweets: function (tweets) {
+            var self = this;
+            tweets = tweets || self.tweets;
+            var i = bs(tweets, {timestamp: self.getPruneAgeAgo()}, tweetKey);
+            if (i < 0) i = -i - 1;
+            return tweets.splice(i, Infinity);
+          },
+          getPruneAgeAgo: function () { return moment().subtract(this.TWEET_PRUNE_AGE).toDate(); }
         }
       });
     });
