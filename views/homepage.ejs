@@ -85,6 +85,7 @@
             console.log('addTweets', tweets.length);
             var self = this;
             var heatMarkers = [];
+            var dayAgo = +moment() - oneDay;
             var markers = $.map(tweets, function (tweet) {
               if (!tweet.geojson) return;
               popupView.$data = tweet;
@@ -92,7 +93,7 @@
               tweet.marker = L.marker(tweet.geojson.coordinates, {title: $('<div>').html(popupHTML).text()})
                 .bindPopup(popupHTML);
               tweet.heatMarker = $.map(tweet.geojson.coordinates, Number)
-                .concat([+moment(tweet.timestamp).subtract(oneDay) / +oneDay]);
+                .concat([1000 * (+moment(tweet.timestamp) - dayAgo) / +oneDay]);
               heatMarkers.push(tweet.heatMarker);
               return tweet.marker;
             });
