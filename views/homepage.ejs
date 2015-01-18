@@ -1,5 +1,5 @@
 <div id="homepage">
-  <div id="spinner" class="text-center" class="hide" v-class="hide: map">
+  <div id="spinner" class="text-center hide" v-class="hide: map">
     <i class="fa fa-spinner fa-spin fa-4x"></i>
   </div>
   <div id="map" class="map"></div>
@@ -11,6 +11,11 @@
     <footer>@<a href="http://twitter.com/{{json.user.screen_name}}" target="_blank">{{json.user.screen_name}}</a> at <span>{{timestamp | time}}</span></footer>
   </blockquote>
 </div>
+
+<noscript>
+  <h1>Sorry!</h1>
+  <p>You need JavaScript enabled to view this page.</p>
+</noscript>
 
 <style>
 #homepage, #map { height: 100%; }
