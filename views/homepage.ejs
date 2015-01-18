@@ -17,7 +17,7 @@
 <script>
 (function (root) {
   document.addEventListener('diseasetrackReady', function () {
-    require(['jquery', 'vue', 'sails.io', 'leaflet', 'moment', 'twitter-text', 'leaflet.markercluster', 'leaflet.geosearch.provider.openstreetmap'], function (jQuery, Vue, io, L, moment, twitter) {
+    require(['jquery', 'vue', 'sails.io', 'leaflet', 'moment', 'twitter-text', 'binarysearch', 'leaflet.markercluster', 'leaflet.geosearch.provider.openstreetmap'], function (jQuery, Vue, io, L, moment, twitter, bs) {
       var $ = jQuery;
       Vue.config.async = false;
       Vue.filter('time', function (date) { return moment(date).format("h:mma"); })
@@ -27,15 +27,10 @@
       return root.homepageView = new Vue({
         el: '#homepage',
         data: {
-          TWEET_DISPLAY_COUNT: 1000,
           tweets: [],
           markerCluster: L.markerClusterGroup(),
         },
-        ready: function () {
-          var self = this;
-          self.initMap();
-          self.subscribeToTweets();
-        },
+        ready: function () { this.subscribeToTweets(); },
         methods: {
           initMap: function () {
             var self = this;
@@ -60,9 +55,12 @@
             io.socket.get('/tweet', {
               retweeted: false,
               geo_status: 'resolved',
-              sort: 'timestamp DESC',
-              limit: self.TWEET_DISPLAY_COUNT
-            }, function (tweets) { self.addTweets(tweets); });
+              timestamp: {'>': moment().subtract(1, 'day').toDate()},
+              sort: 'timestamp DESC'
+            }, function (tweets) {
+              self.initMap();
+              self.addTweets(tweets);
+            });
             io.socket.on('tweet', function (data) { self.addTweets([data.data]); });
           },
           addTweets: function (tweets) {
@@ -77,8 +75,12 @@
               return tweet.marker;
             });
             self.markerCluster.addLayers(markers);
-            tweets = tweets.concat(self.tweets);
-            var removedTweets = tweets.splice(self.TWEET_DISPLAY_COUNT, Infinity);
+            self.tweets = tweets.concat(self.tweets);
+            var i = bs(self.tweets, {timestamp: moment().subtract(1, 'day').toDate()}, function (tweet) {
+              return (tweet || {}).timestamp;
+            });
+            if (i < 0) i = -i - 1;
+            var removedTweets = self.tweets.splice(i, Infinity);
             self.markerCluster.removeLayers($.map(removedTweets, function (tweet) {
               return tweet.marker;
             }));

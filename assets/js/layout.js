@@ -13,12 +13,14 @@
       'leaflet.geosearch.provider.openstreetmap': 'https://rawgit.com/smeijer/L.GeoSearch/master/src/js/l.geosearch.provider.openstreetmap',
       moment: 'https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.9.0/moment.min',
       'twitter-text': 'https://rawgit.com/twitter/twitter-text/master/js/twitter-text',
+      'binarysearch': 'https://rawgit.com/mgechev/javascript-algorithms/master/src/searching/binarysearch',
     },
     shim: {
       bootstrap: {deps: ['jquery']},
       'leaflet.markercluster': {deps: ['leaflet']},
       'leaflet.geosearch': {deps: ['leaflet']},
       'leaflet.geosearch.provider.openstreetmap': {deps: ['leaflet.geosearch']},
+      'binarysearch': {exports: 'binarySearch'},
     }
   });
 
