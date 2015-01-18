@@ -9,6 +9,7 @@
       vue: 'https://cdnjs.cloudflare.com/ajax/libs/vue/0.11.4/vue.min',
       leaflet: 'http://cdn.leafletjs.com/leaflet-0.7.3/leaflet',
       'leaflet.markercluster': 'https://rawgit.com/Leaflet/Leaflet.markercluster/master/dist/leaflet.markercluster',
+      'leaflet.heat': 'http://leaflet.github.io/Leaflet.heat/dist/leaflet-heat',
       'leaflet.geosearch': 'https://rawgit.com/smeijer/L.GeoSearch/master/src/js/l.control.geosearch',
       'leaflet.geosearch.provider.openstreetmap': 'https://rawgit.com/smeijer/L.GeoSearch/master/src/js/l.geosearch.provider.openstreetmap',
       moment: 'https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.9.0/moment.min',
@@ -18,6 +19,7 @@
     shim: {
       bootstrap: {deps: ['jquery']},
       'leaflet.markercluster': {deps: ['leaflet']},
+      'leaflet.heat': {deps: ['leaflet']},
       'leaflet.geosearch': {deps: ['leaflet']},
       'leaflet.geosearch.provider.openstreetmap': {deps: ['leaflet.geosearch']},
       'binarysearch': {exports: 'binarySearch'},

@@ -17,18 +17,20 @@
 <script>
 (function (root) {
   document.addEventListener('diseasetrackReady', function () {
-    require(['jquery', 'vue', 'sails.io', 'leaflet', 'moment', 'twitter-text', 'binarysearch', 'leaflet.markercluster', 'leaflet.geosearch.provider.openstreetmap'], function (jQuery, Vue, io, L, moment, twitter, bs) {
+    require(['jquery', 'vue', 'sails.io', 'leaflet', 'moment', 'twitter-text', 'binarysearch', 'leaflet.markercluster', 'leaflet.heat', 'leaflet.geosearch.provider.openstreetmap'], function (jQuery, Vue, io, L, moment, twitter, bs) {
       var $ = jQuery;
       Vue.config.async = false;
       Vue.filter('time', function (date) { return moment(date).format("h:mma"); })
       Vue.filter('autoLink', function (text) { return twitter.autoLink(text || '', {target: '_blank'}); });
       // Vue.component('marker-popup', {template: '#marker-popup-template'});
+      var oneDay = moment.duration(1, 'day');
       var popupView = new Vue({el: '#marker-popup-template'});
       return root.homepageView = new Vue({
         el: '#homepage',
         data: {
           tweets: [],
           markerCluster: L.markerClusterGroup(),
+          heatLayer: L.heatLayer([]),
         },
         ready: function () { this.subscribeToTweets(); },
         methods: {
@@ -37,9 +39,12 @@
             var map = L.map('map', {
               center: [0, 0],
               zoom: 1,
-              layers: [L.tileLayer('http://{s}.tile.osm.org/{z}/{x}/{y}.png', {
-                attribution: '&copy; <a href="http://osm.org/copyright" target="_blank">OpenStreetMap</a>'
-              })]
+              layers: [
+                L.tileLayer('http://{s}.tile.osm.org/{z}/{x}/{y}.png', {
+                  attribution: '&copy; <a href="http://osm.org/copyright" target="_blank">OpenStreetMap</a>'
+                }),
+                self.heatLayer,
+              ]
             });
             new L.Control.GeoSearch({
               provider: new L.GeoSearch.Provider.OpenStreetMap(),
@@ -55,7 +60,7 @@
             io.socket.get('/tweet', {
               retweeted: false,
               geo_status: 'resolved',
-              timestamp: {'>': moment().subtract(1, 'day').toDate()},
+              timestamp: {'>': moment().subtract(oneDay).toDate()},
               sort: 'timestamp DESC'
             }, function (tweets) {
               self.initMap();
@@ -66,17 +71,21 @@
           addTweets: function (tweets) {
             console.log('addTweets', tweets.length);
             var self = this;
+            var heatMarkers = [];
             var markers = $.map(tweets, function (tweet) {
               if (!tweet.geojson) return;
               popupView.$data = tweet;
               var popupHTML = popupView.$el.innerHTML;
               tweet.marker = L.marker(tweet.geojson.coordinates, {title: $('<div>').html(popupHTML).text()})
                 .bindPopup(popupHTML);
+              tweet.heatMarker = $.map(tweet.geojson.coordinates, Number)
+                .concat([+moment(tweet.timestamp).subtract(oneDay) / +oneDay]);
+              heatMarkers.push(tweet.heatMarker);
               return tweet.marker;
             });
             self.markerCluster.addLayers(markers);
             self.tweets = tweets.concat(self.tweets);
-            var i = bs(self.tweets, {timestamp: moment().subtract(1, 'day').toDate()}, function (tweet) {
+            var i = bs(self.tweets, {timestamp: moment().subtract(oneDay).toDate()}, function (tweet) {
               return (tweet || {}).timestamp;
             });
             if (i < 0) i = -i - 1;
@@ -84,6 +93,9 @@
             self.markerCluster.removeLayers($.map(removedTweets, function (tweet) {
               return tweet.marker;
             }));
+            self.heatLayer.setLatLngs(self.heatLayer._latlngs
+              .concat(heatMarkers)
+              .slice(0, self.tweets.length));
           }
         }
       });
