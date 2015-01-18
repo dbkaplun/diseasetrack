@@ -74,7 +74,6 @@
               var popupHTML = popupView.$el.innerHTML;
               tweet.marker = L.marker(tweet.geojson.coordinates, {title: $('<div>').html(popupHTML).text()})
                 .bindPopup(popupHTML);
-              tweet.marker.tweet = tweet;
               return tweet.marker;
             });
             self.markerCluster.addLayers(markers);
