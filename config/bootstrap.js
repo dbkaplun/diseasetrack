@@ -9,10 +9,10 @@
  * http://sailsjs.org/#/documentation/reference/sails.config/sails.config.bootstrap.html
  */
 
-module.exports.GEOCODE_PERIOD = 15 * 1000; // every 15 seconds
+module.exports.GEOCODE_INTERVAL = 15 * 1000; // every 15 seconds
 
 module.exports.bootstrap = function (done) {
   twitterService(sails.config.DEFAULT_TWITTER_QUERY);
-  geocodeService(sails.config.GEOCODE_PERIOD);
+  geocodeService(sails.config.GEOCODE_INTERVAL);
   done();
 };

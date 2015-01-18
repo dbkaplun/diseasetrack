@@ -29,8 +29,10 @@
 (function (root) {
   document.addEventListener('diseasetrackReady', function () {
     require(['jquery', 'vue', 'sails.io', 'leaflet', 'moment', 'twitter-text', 'binarysearch', 'mergesort', 'leaflet.markercluster', 'leaflet.heat', 'leaflet.geosearch.provider.openstreetmap'], function (jQuery, Vue, io, L, moment, twitter, bs, ms) {
+      var keyCmp = function (key) { return function (a, b) { return key(a) - key(b); }; };
       var tweetKey = function (tweet) { return (tweet || {}).timestamp; };
-      var tweetCmp = function (a, b) { return tweetKey(b) - tweetKey(a); };
+      var tweetCmp = keyCmp(function (tweet) { return -tweetKey(tweet); });
+      var insertionIndex = function (i) { return i < 0 ? -i - 1 : i; };
 
       var $ = jQuery;
 
@@ -49,7 +51,8 @@
           heatLayer: L.heatLayer([]),
 
           TWEET_PRUNE_AGE: moment.duration(1, 'day'),
-          TWEET_CHUNK_SIZE: 500
+          TWEET_CHUNK_SIZE: 50,
+          FETCH_TWEETS_INTERVAL: moment.duration(15, 'seconds')
         },
         ready: function () { this.subscribeToTweets(); },
         methods: {
@@ -76,20 +79,37 @@
           },
           subscribeToTweets: function () {
             var self = this;
+            self.fetchTweets();
+            io.socket.on('tweet', function (data) { self.addTweets([data.data]); });
+            // self.fetchTweetsInterval = setInterval(function () {
+            //   self.fetchTweets();
+            // }, self.FETCH_TWEETS_INTERVAL);
+          },
+          fetchTweets: function () {
+            var self = this;
+            var recentTweet = self.tweets[0];
             self.getTweetsChunked(function (tweets) {
               if (!self.map) self.initMap();
+              if (recentTweet) {
+                var i = insertionIndex(bs(tweets, recentTweet, tweetKey));
+                if (i < tweets.length) {
+                  self.addTweets(tweets.slice(0, i));
+                  return false;
+                }
+              }
               self.addTweets(tweets);
               return tweets.length;
             });
-            io.socket.on('tweet', function (data) { self.addTweets([data.data]); });
           },
-          getTweetsChunked: function (chunkFn, skip) {
+          getTweetsChunked: function (chunkFn, q) {
             var self = this;
             chunkFn = chunkFn || function (tweets) { return tweets.length; };
-            skip = skip || 0;
-            self.getTweets({skip: skip}, function () {
+            q = q || {};
+            self.getTweets(q, function () {
               if (!chunkFn.apply(self, arguments)) return;
-              self.getTweetsChunked(chunkFn, skip + self.TWEET_CHUNK_SIZE);
+              self.getTweetsChunked(chunkFn, $.extend(null, q, {
+                skip: (q.skip || 0) + self.TWEET_CHUNK_SIZE
+              }));
             });
           },
           getTweets: function (q, fn) {
@@ -137,9 +157,7 @@
           pruneTweets: function (tweets) {
             var self = this;
             tweets = tweets || self.tweets;
-            var i = bs(tweets, {timestamp: self.getPruneAgeAgo()}, tweetKey);
-            if (i < 0) i = -i - 1;
-            return tweets.splice(i, Infinity);
+            return tweets.splice(insertionIndex(bs(tweets, {timestamp: self.getPruneAgeAgo()}, tweetKey)), Infinity);
           },
           getPruneAgeAgo: function () { return moment().subtract(this.TWEET_PRUNE_AGE).toDate(); }
         }
