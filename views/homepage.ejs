@@ -93,8 +93,8 @@
             self.markerCluster.removeLayers($.map(removedTweets, function (tweet) {
               return tweet.marker;
             }));
-            self.heatLayer.setLatLngs(self.heatLayer._latlngs
-              .concat(heatMarkers)
+            self.heatLayer.setLatLngs(heatMarkers
+              .concat(self.heatLayer._latlngs)
               .slice(0, self.tweets.length));
           }
         }
