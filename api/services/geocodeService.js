@@ -3,14 +3,14 @@
 var Promise = require('bluebird');
 var geocoder = require('node-geocoder').getGeocoder('openstreetmap');
 
-module.exports = function (period) {
+module.exports = function (interval) {
   setInterval(function () {
-    module.exports.geocode()
+    module.exports.geocodeTweets()
       .catch(sails.log.error)
       .done()
-  }, period);
+  }, interval);
 };
-module.exports.geocode = function () {
+module.exports.geocodeTweets = function () {
   return Tweet.find({geo_status: 'pending'}).then(function (tweets) {
     sails.log.info("geocoding " + tweets.length + " tweets");
     var toGeocode = tweets.filter(function (tweet) {
@@ -29,28 +29,29 @@ module.exports.geocode = function () {
           json.user.location,
           json.user.time_zone,
         ].filter(Boolean).join(' ');
-        return true;
+        if (!tweet.geo_req) tweet.geo_status = 'rejected';
+        return tweet.geo_req;
       }
     });
-    return Promise.resolve(geocoder.batchGeocode(_.pluck(toGeocode, 'geo_req')))
-      .each(function (res, i) {
-        var tweet = toGeocode[i];
-        tweet.geo_status = res.length ? 'resolved' : 'rejected';
-        tweet.geo_res = res;
-        if (res.length) {
-          var first = res[0];
-          tweet.geojson = {type: 'Point', coordinates: [first.latitude, first.longitude]};
-        }
-      })
-      .catch(function (err) {
-        toGeocode.forEach(function (tweet) {
+
+    return Promise.resolve(toGeocode.map(function (tweet) {
+      return module.exports.geocode(tweet.geo_req)
+        .tap(function (res, i) {
+          tweet.geo_status = res.length ? 'resolved' : 'rejected';
+          tweet.geo_res = res;
+          if (res.length) {
+            var first = res[0];
+            tweet.geojson = {type: 'Point', coordinates: [first.latitude, first.longitude]};
+          }
+        })
+        .catch(function (err) {
           tweet.geo_status = 'rejected';
           tweet.geo_res = err;
+          throw err;
         });
-        throw err;
-      })
+    }))
       .finally(function () {
-        return Promise.map(tweets, function (tweet) {
+        Promise.map(tweets, function (tweet) {
           Tweet.publishUpdate(tweet.id, tweet);
           return tweet.save();
         });
@@ -58,3 +59,21 @@ module.exports.geocode = function () {
       .return(tweets);
   });
 };
+
+module.exports.geocode = function () {
+  return Promise
+    .resolve(geocoder.geocode.apply(geocoder, arguments))
+    .then(module.exports._handleGeocodeError)
+};
+module.exports.batchGeocode = function () {
+  return Promise
+    .resolve(geocoder.batchGeocode.apply(geocoder, arguments))
+    .then(module.exports._handleGeocodeError)
+};
+module.exports._handleGeocodeError = Promise.method(function (data) {
+  if (data instanceof Error) {
+    console.log('err', Object.keys(data));
+    throw data;
+  }
+  return data;
+});
