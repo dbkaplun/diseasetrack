@@ -2,9 +2,12 @@
   require.config({
     paths: {
       jquery: 'https://code.jquery.com/jquery-1.11.1.min',
+      'jquery.throttle-debounce': 'https://cdnjs.cloudflare.com/ajax/libs/jquery-throttle-debounce/1.1/jquery.ba-throttle-debounce.min',
       bootstrap: '//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/js/bootstrap.min',
       vue: 'https://cdnjs.cloudflare.com/ajax/libs/vue/0.11.4/vue.min',
       'nprogress': 'https://rawgit.com/rstacruz/nprogress/master/nprogress',
+      d3: 'http://d3js.org/d3.v3.min',
+      c3: 'https://cdnjs.cloudflare.com/ajax/libs/c3/0.4.8/c3',
       leaflet: 'http://cdn.leafletjs.com/leaflet-0.7.3/leaflet',
       'leaflet.markercluster': 'https://rawgit.com/Leaflet/Leaflet.markercluster/master/dist/leaflet.markercluster',
       'leaflet.heat': 'http://leaflet.github.io/Leaflet.heat/dist/leaflet-heat',
@@ -20,6 +23,7 @@
       'mergesort': 'https://rawgit.com/secrettriangle/javascript-algorithms/779c7ec1525e750e50883bd3e1253df983067b20/src/sorting/mergesort',
     },
     shim: {
+      'jquery.throttle-debounce': {deps: ['jquery']},
       bootstrap: {deps: ['jquery']},
       'leaflet.markercluster': {deps: ['leaflet']},
       'leaflet.heat': {deps: ['leaflet']},
