@@ -81,7 +81,10 @@
               axis: {
                   x: {
                       type: 'timeseries',
-                      tick: {format: '%I:%M:%S'}
+                      tick: {format: '%I:%M%p'}
+                  },
+                  y: {
+                      label: "Tweet count"
                   }
               },
               subchart: {
