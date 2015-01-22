@@ -7,7 +7,7 @@ module.exports = function () {
   setInterval(function () {
     module.exports.geocodeTweets()
       .then(function (tweets) {
-        sails.log.info("geocoding complete: ", JSON.stringify(tweets.reduce(function (totals, tweet) {
+        sails.log.info("geocoding complete: " + JSON.stringify(tweets.reduce(function (totals, tweet) {
           totals[tweet.geo_status] = (totals[tweet.geo_status] || 0) + 1;
           return totals;
         }, {})));
