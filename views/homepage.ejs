@@ -46,7 +46,7 @@
         el: '#homepage',
         data: {
           tweets: [],
-          chartDomain: [new Date(0), new Date()],
+          chartDomain: [new Date(0), new Date(0)],
           messages: [],
 
           map: null,
@@ -55,7 +55,7 @@
 
           TWEET_PRUNE_AGE: moment.duration(1, 'day'),
           TWEET_CHUNK_SIZE: 1000,
-          UPDATE_TWEETS_INTERVAL: moment.duration(15, 'seconds'),
+          UPDATE_TWEETS_INTERVAL: moment.duration(1, 'minutes'),
           CHART_TWEETS_INTERVAL: moment.duration(15, 'minutes'),
           MESSAGES_TO_SHOW: 5
         },
@@ -195,8 +195,8 @@
                   class: 'text-muted'
                 }])
                 .slice(-self.MESSAGES_TO_SHOW);
-              self.updateMap();
               self.updateChart();
+              self.updateMap();
             }
           },
           updateChart: $.throttle(200, function () {
@@ -231,10 +231,12 @@
             var markers = [];
             var heatMarkers = [];
             var now = new Date();
-            $.each(self.tweets.slice(
+            var tweets = self.tweets;
+            if (+self.chartDomain[0] !== +self.chartDomain[1]) tweets = tweets.slice(
               insertionIndex(bs(self.tweets, {timestamp: self.chartDomain[1]}, tweetKey)),
               insertionIndex(bs(self.tweets, {timestamp: self.chartDomain[0]}, tweetKey))
-            ), function (_, tweet) {
+            );
+            $.each(tweets, function (_, tweet) {
               markers.push(tweet.marker);
               tweet.heatMarker[2] = 10 * (self.TWEET_PRUNE_AGE - (now - tweet.timestamp)) / self.TWEET_PRUNE_AGE;
               heatMarkers.push(tweet.heatMarker);
