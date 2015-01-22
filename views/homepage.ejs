@@ -190,11 +190,13 @@
               self.tweets = tweets // assumes added tweets are more recent for performance's sake
                 .concat(self.tweets)
                 .sort(tweetCmp);
-              self.pruneTweets();
+              var tweetsPruned = self.pruneTweets().length;
 
               self.messages = self.messages
                 .concat([{
-                  message: tweetsAdded + " fresh tweet" + (tweetsAdded === 1 ? "" : "s") + ", total " + self.tweets.length,
+                  message: tweetsAdded + " fresh tweet" + (tweetsAdded === 1 ? "" : "s") +
+                   ", total " + self.tweets.length +
+                   (tweetsPruned ? " (" + tweetsPruned + " pruned)" : ""),
                   class: 'text-muted'
                 }])
                 .slice(-self.MESSAGES_TO_SHOW);
