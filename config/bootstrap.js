@@ -10,9 +10,10 @@
  */
 
 module.exports.GEOCODE_INTERVAL = 10 * 60 * 1000;
+module.exports.GEOCODE_BATCH_SIZE = 50;
 
 module.exports.bootstrap = function (done) {
   twitterService(sails.config.DEFAULT_TWITTER_QUERY);
-  geocodeService(sails.config.GEOCODE_INTERVAL);
+  geocodeService();
   done();
 };

@@ -3,38 +3,27 @@
 var Promise = require('bluebird');
 var geocoder = require('node-geocoder').getGeocoder('openstreetmap');
 
-module.exports = function (interval) {
+module.exports = function () {
   setInterval(function () {
     module.exports.geocodeTweets()
+      .then(function (tweets) {
+        sails.log.info("geocoding complete: ", JSON.stringify(tweets.reduce(function (totals, tweet) {
+          totals[tweet.geo_status] = (totals[tweet.geo_status] || 0) + 1;
+          return totals;
+        }, {})));
+      })
       .catch(sails.log.error)
       .done()
-  }, interval);
+  }, sails.config.GEOCODE_INTERVAL);
 };
 module.exports.geocodeTweets = function () {
-  return Tweet.find({geo_status: 'pending'}).then(function (tweets) {
+  return Tweet.find({
+    where: {geo_status: 'pending'},
+    limit: sails.config.GEOCODE_BATCH_SIZE,
+    sort: 'timestamp DESC'
+  }).then(function (tweets) {
     sails.log.info("geocoding " + tweets.length + " tweets");
-    var toGeocode = tweets.filter(function (tweet) {
-      var json = tweet.json;
-      var coordinates =
-        (json.geo || json.coordinates || {}).coordinates ||
-        ((((json.place || {}).bounding_box || {}).coordinates || [])[0] || [])[0];
-      ['geo', 'coordinates', 'place'].some(function (path) {
-        if (json[path]) { console.log(path, coordinates); return true; }
-      });
-      if (coordinates) {
-        tweet.geo_status = 'resolved';
-        tweet.geojson = {type: 'Point', coordinates: coordinates};
-      } else {
-        tweet.geo_req = [
-          json.user.location,
-          json.user.time_zone,
-        ].filter(Boolean).join(' ');
-        if (!tweet.geo_req) tweet.geo_status = 'rejected';
-        return tweet.geo_req;
-      }
-    });
-
-    return Promise.resolve(toGeocode.map(function (tweet) {
+    return Promise.resolve(tweets.map(function (tweet) {
       return module.exports.geocode(tweet.geo_req)
         .tap(function (res, i) {
           tweet.geo_status = res.length ? 'resolved' : 'rejected';

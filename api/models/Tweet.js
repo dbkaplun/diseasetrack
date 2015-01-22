@@ -17,9 +17,29 @@ module.exports = {
     geojson: 'json',
   },
   beforeValidate: function (values, done) {
-    values.id_str = values.json.id_str;
-    values.timestamp = new Date(Number(values.json.timestamp_ms));
-    values.retweeted = values.json.retweeted;
+    var json = values.json;
+
+    values.id_str = json.id_str;
+    values.timestamp = new Date(Number(json.timestamp_ms));
+    values.retweeted = json.retweeted;
+
+    var coordinates =
+      (json.geo || json.coordinates || {}).coordinates ||
+      ((((json.place || {}).bounding_box || {}).coordinates || [])[0] || [])[0];
+    ['geo', 'coordinates', 'place'].some(function (path) {
+      if (json[path]) { sails.log.debug("twitter sent " + path + ": " + coordinates); return true; }
+    });
+    if (coordinates) {
+      values.geo_status = 'resolved';
+      values.geojson = {type: 'Point', coordinates: coordinates};
+    } else {
+      values.geo_req = [
+        json.user.location,
+        json.user.time_zone,
+      ].filter(Boolean).join(' ');
+      if (!values.geo_req) values.geo_status = 'rejected';
+    }
+
     done();
   }
 };
