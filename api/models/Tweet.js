@@ -9,10 +9,10 @@ module.exports = {
   attributes: {
     json: {type: 'json', required: true},
     id_str: {type: 'string', required: true, unique: true},
-    timestamp: {type: 'datetime', required: true},
-    retweeted: {type: 'boolean', required: true},
+    timestamp: {type: 'datetime', required: true, index: true},
+    retweeted: {type: 'boolean', required: true, index: true},
 
-    geo_status: {type: 'string', required: true, defaultsTo: 'pending', enum: ['pending', 'resolved', 'rejected']},
+    geo_status: {type: 'string', required: true, defaultsTo: 'pending', enum: ['pending', 'resolved', 'rejected'], index: true},
     geo_res: 'json',
     geojson: 'json',
   },
