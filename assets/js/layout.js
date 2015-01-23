@@ -1,4 +1,5 @@
 (function (root) {
+  var gaName = 'ga';
   require.config({
     paths: {
       jquery: 'https://code.jquery.com/jquery-1.11.1.min',
@@ -21,6 +22,8 @@
       'twitter-text': 'https://rawgit.com/twitter/twitter-text/master/js/twitter-text',
       'binarysearch': 'https://rawgit.com/mgechev/javascript-algorithms/master/src/searching/binarysearch',
       'mergesort': 'https://rawgit.com/secrettriangle/javascript-algorithms/779c7ec1525e750e50883bd3e1253df983067b20/src/sorting/mergesort',
+
+      'google-analytics': 'http://www.google-analytics.com/analytics',
     },
     shim: {
       'jquery.throttle-debounce': {deps: ['jquery']},
@@ -31,6 +34,14 @@
       'leaflet.geosearch.provider.openstreetmap': {deps: ['leaflet.geosearch']},
       'binarysearch': {exports: 'binarySearch'},
       'mergesort': {exports: 'mergeSort'},
+      'google-analytics': {exports: gaName, init: function () {
+        var name = this.GoogleAnalyticsObject = gaName;
+        var ga = this[name] || function () {
+          (ga.q = ga.q || []).push(arguments);
+        };
+        ga.l = 1 * new Date();
+        return ga;
+      }},
     }
   });
 
@@ -40,5 +51,10 @@
     jQuery(function ($) {
       var $body = $('body').removeClass('no-js').addClass('js');
     });
+  });
+
+  require(['google-analytics'], function (ga) {
+    ga('create', 'UA-58867706-2', 'auto');
+    ga('send', 'pageview');
   });
 }(this));
