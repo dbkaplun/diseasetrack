@@ -1,1 +1,3 @@
 # diseasetrack
+
+![Screencast](screencast.gif)
