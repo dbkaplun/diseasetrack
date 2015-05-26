@@ -21,7 +21,7 @@
       moment: 'https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.9.0/moment.min',
       'twitter-text': 'https://rawgit.com/twitter/twitter-text/master/js/twitter-text',
       'binarysearch': 'https://rawgit.com/mgechev/javascript-algorithms/master/src/searching/binarysearch',
-      'mergesort': 'https://rawgit.com/secrettriangle/javascript-algorithms/779c7ec1525e750e50883bd3e1253df983067b20/src/sorting/mergesort',
+      'mergesort': 'https://rawgit.com/dbkaplun/javascript-algorithms/779c7ec1525e750e50883bd3e1253df983067b20/src/sorting/mergesort',
 
       'google-analytics': 'http://www.google-analytics.com/analytics',
     },
